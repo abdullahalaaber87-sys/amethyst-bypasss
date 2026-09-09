@@ -7,11 +7,14 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.debug.DebugRenderer;
+import net.minecraft.client.render.RenderLayers;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexRendering;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
 
@@ -40,11 +43,15 @@ public class XrayMod implements ClientModInitializer {
 
                 if (scanCooldown-- <= 0) {
                     scanAllLoadedChunks(client);
+
+                    // 100 ticks = تقريباً 5 ثواني
                     scanCooldown = 100;
                 }
 
             } else {
+
                 scannedOnJoin = false;
+                scanCooldown = 0;
                 AMETHYST_POSITIONS.clear();
             }
         });
@@ -59,14 +66,18 @@ public class XrayMod implements ClientModInitializer {
 
             MatrixStack matrices = context.matrices();
 
+            VertexConsumer lines =
+                    context.consumers().getBuffer(RenderLayers.lines());
+
             Vec3d cameraPos =
                     client.gameRenderer.getCamera().getCameraPos();
 
             for (BlockPos pos : AMETHYST_POSITIONS) {
 
-                if (!client.world.isChunkLoaded(
-                        pos.getX() >> 4,
-                        pos.getZ() >> 4)) {
+                int chunkX = pos.getX() >> 4;
+                int chunkZ = pos.getZ() >> 4;
+
+                if (!client.world.isChunkLoaded(chunkX, chunkZ)) {
                     continue;
                 }
 
@@ -74,19 +85,15 @@ public class XrayMod implements ClientModInitializer {
                 double y = pos.getY() - cameraPos.y;
                 double z = pos.getZ() - cameraPos.z;
 
-                DebugRenderer.drawBox(
+                VertexRendering.drawOutline(
                         matrices,
-                        context.consumers(),
+                        lines,
+                        VoxelShapes.fullCube(),
                         x,
                         y,
                         z,
-                        x + 1,
-                        y + 1,
-                        z + 1,
-                        1.0F,
-                        0.0F,
-                        0.0F,
-                        1.0F
+                        0xFFFF0000,
+                        2.0F
                 );
             }
         });
@@ -137,11 +144,12 @@ public class XrayMod implements ClientModInitializer {
                                     cz * 16 + z
                             );
 
-                            BlockState state =
-                                    chunk.getBlockState(pos);
+                            BlockState state = chunk.getBlockState(pos);
 
-                            if (state.getBlock() == Blocks.AMETHYST_BLOCK
-                                    || state.getBlock() == Blocks.BUDDING_AMETHYST) {
+                            if (
+                                    state.isOf(Blocks.AMETHYST_BLOCK)
+                                    || state.isOf(Blocks.BUDDING_AMETHYST)
+                            ) {
 
                                 AMETHYST_POSITIONS.add(
                                         pos.toImmutable()

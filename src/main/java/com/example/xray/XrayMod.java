@@ -2,16 +2,16 @@ package com.example.xray;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.render.debug.DebugRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
 
@@ -30,6 +30,7 @@ public class XrayMod implements ClientModInitializer {
     public void onInitializeClient() {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+
             if (client.player != null && client.world != null) {
 
                 if (!scannedOnJoin) {
@@ -49,19 +50,17 @@ public class XrayMod implements ClientModInitializer {
         });
 
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+
             MinecraftClient client = MinecraftClient.getInstance();
 
             if (client.player == null || client.world == null) {
                 return;
             }
 
-            MatrixStack matrices = context.matrixStack();
+            MatrixStack matrices = context.matrices();
 
-            VertexConsumer lines =
-                    context.consumers().getBuffer(RenderLayer.getLines());
-
-            Vec3dSafe cam =
-                    new Vec3dSafe(client.gameRenderer.getCamera().getPos());
+            Vec3d cameraPos =
+                    client.gameRenderer.getCamera().getCameraPos();
 
             for (BlockPos pos : AMETHYST_POSITIONS) {
 
@@ -71,13 +70,13 @@ public class XrayMod implements ClientModInitializer {
                     continue;
                 }
 
-                double x = pos.getX() - cam.x;
-                double y = pos.getY() - cam.y;
-                double z = pos.getZ() - cam.z;
+                double x = pos.getX() - cameraPos.x;
+                double y = pos.getY() - cameraPos.y;
+                double z = pos.getZ() - cameraPos.z;
 
-                WorldRenderer.drawBox(
+                DebugRenderer.drawBox(
                         matrices,
-                        lines,
+                        context.consumers(),
                         x,
                         y,
                         z,
@@ -113,11 +112,11 @@ public class XrayMod implements ClientModInitializer {
                  cz <= playerChunk.z + radius;
                  cz++) {
 
-                Chunk chunk = world.getChunk(cx, cz);
-
-                if (chunk == null || chunk.isEmpty()) {
+                if (!world.isChunkLoaded(cx, cz)) {
                     continue;
                 }
+
+                Chunk chunk = world.getChunk(cx, cz);
 
                 int minY = world.getBottomY();
 
@@ -152,19 +151,6 @@ public class XrayMod implements ClientModInitializer {
                     }
                 }
             }
-        }
-    }
-
-    private static class Vec3dSafe {
-
-        final double x;
-        final double y;
-        final double z;
-
-        Vec3dSafe(net.minecraft.util.math.Vec3d v) {
-            x = v.x;
-            y = v.y;
-            z = v.z;
         }
     }
 }

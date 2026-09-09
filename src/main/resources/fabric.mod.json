@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "xraymod",
+  "version": "1.0.0",
+  "name": "Amethyst XRay",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.example.xray.XrayMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": "~1.20"
+  }
+}
